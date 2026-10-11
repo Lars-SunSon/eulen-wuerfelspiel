@@ -276,7 +276,7 @@ const JOKERZEICHEN = { sn: ')', zc: '2', ep: 'P' };
 
 const neueRunde = () => ({ f: [], klammer: null, status: 'offen', zc: false, doppelt: false, korr: 0, override: null });
 const neueJoker = () => [{ typ: 'sn', used: null }, { typ: 'zc', used: null }, { typ: 'ep', used: null }, { typ: null, used: null }, { typ: null, used: null }];
-const neuerStand = () => ({ v: 2, setupDone: false, name: '', cur: 0, tab: 'spiel', phase: 'play',
+const neuerStand = () => ({ v: 2, setupDone: false, name: '', cur: 0, tab: 'spiel', phase: 'play', zielGezeigt: false,
   rounds: Array.from({ length: RUNDEN }, neueRunde), joker: neueJoker(), pendingNew: false, dialog: null });
 let state = neuerStand();
 let verlauf = [];
@@ -323,7 +323,12 @@ const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&am
 
 /* ── Eingaben ── */
 function pruefeVoll(r) {
-  if (r.f.length >= FELDER && r.status === 'offen') { r.status = 'gesichert'; toast('Zeile voll – Runde beendet, deine Punkte sind gesichert.'); }
+  if (r.f.length >= FELDER && r.status === 'offen') { r.status = 'gesichert'; toast('Zeile voll – Runde beendet, deine Punkte sind gesichert.'); zielPruefen(false); }
+}
+/* Ziel erreicht: einmal pro Partie ein Fenster mit Gesamtpunkten – beenden oder weiterspielen. Wirkt auf dem nächsten render(). */
+function zielPruefen(weiter) {
+  if (state.phase !== 'play' || state.zielGezeigt || gesamt() < ZIEL) return false;
+  state.dialog = { art: 'ziel', weiter: !!weiter }; return true;
 }
 function zahlTippen(n) {
   const r = R();
@@ -340,7 +345,7 @@ function zahlTippen(n) {
 function doppeltWahl(w) {
   const r = R(), n = state.dialog.n; state.dialog = null;
   if (w === 'nullen') {
-    merken(); r.status = 'genullt'; r.zc = false; speichern(); render(true);
+    merken(); r.status = 'genullt'; r.zc = false; zielPruefen(false); speichern(); render(true);
     toast(r.klammer === null ? 'Genullt – 0 Punkte für diese Runde, du setzt aus.' : 'Genullt – die Punkte bis zur Klammer ) bleiben dir.'); return;
   }
   if (w === 'zc') {
@@ -351,8 +356,8 @@ function doppeltWahl(w) {
   render(false);
   toast('Die ' + n + ' wird nicht eingetragen – beide Würfel nochmal werfen.');
 }
-function sichern() { const r = R(); if (r.status !== 'offen' || !r.f.length) return; merken(); r.status = 'gesichert'; r.zc = false; speichern(); render(true); }
-function nullenKnopf() { const r = R(); if (r.status !== 'offen' || !r.f.length) return; merken(); r.status = 'genullt'; r.zc = false; speichern(); render(true); }
+function sichern() { const r = R(); if (r.status !== 'offen' || !r.f.length) return; merken(); r.status = 'gesichert'; r.zc = false; zielPruefen(false); speichern(); render(true); }
+function nullenKnopf() { const r = R(); if (r.status !== 'offen' || !r.f.length) return; merken(); r.status = 'genullt'; r.zc = false; zielPruefen(false); speichern(); render(true); }
 function oeffnen() { merken(); R().status = 'offen'; speichern(); render(true); toast('Runde wieder offen.'); }
 function letzteWeg() {
   const r = R(); if (!r.f.length) return;
@@ -425,6 +430,7 @@ function weiter() {
   const r = R();
   if (state.cur >= RUNDEN - 1) { beenden(); return; }
   if (r.status === 'offen' && r.f.length) { state.dialog = { art: 'weiter' }; render(false); return; }
+  if (zielPruefen(true)) { render(false); return; }
   state.cur++; speichern(); render(false); window.scrollTo(0, 0);
 }
 function beenden() { merken(); state.phase = 'done'; state.dialog = null; state.tab = 'spiel'; speichern(); render(false); window.scrollTo(0, 0); }
@@ -593,6 +599,7 @@ function dialog() {
   if (d.art === 'detail') return detailDialog(d);
   if (d.art === 'bonusjoker') return bonusDialog();
   if (d.art === 'joker') return jokerDialog(d);
+  if (d.art === 'ziel') return zielDialog(d);
   if (d.art === 'weiter') return weiterDialog();
   return '';
 }
@@ -663,6 +670,15 @@ function detailDialog(d) {
     (r.override !== null ? '<button class="abbr" data-a="dov0">Wieder automatisch rechnen</button>' : '') +
     '<div class="opts" style="margin-top:12px"><button class="opt bad" data-a="rleer"><span class="ic" style="color:var(--bad)">⌫</span><div><div class="nm">Runde leeren</div><div class="bs">Löscht alle Felder, Status und Korrekturen dieser Runde.</div></div></button></div>' +
     '<button class="abbr" data-a="dlgzu">Fertig</button>');
+}
+function zielDialog(d) {
+  const letzte = state.cur >= RUNDEN - 1;
+  return ov('<div class="dt">' + ZIEL + ' erreicht!</div><div class="ds">Das läutet die letzte Runde ein: Alle anderen spielen die laufende Runde noch zu Ende, danach gewinnt, wer die meisten Punkte hat.</div>' +
+    '<div style="text-align:center;margin-bottom:12px"><div class="flap" style="display:inline-block;font-size:46px;padding:4px 28px">' + fmt(gesamt()) + '</div>' +
+    '<div class="klein" style="margin-top:6px">Gesamtpunkte · Genullte Runden: <b>' + nullrunden() + '</b></div></div>' +
+    '<div class="opts"><button class="opt pink" data-a="zend"><span class="ic" style="color:#fff">■</span><div><div class="nm">Partie beenden</div><div class="bs">Endstand mit deinen Gesamtpunkten anzeigen.</div></div></button>' +
+    (letzte ? '' : '<button class="opt" data-a="zweiter"><span class="ic" style="color:var(--lime)">›</span><div><div class="nm">Weiterspielen</div><div class="bs">' + (d.weiter ? 'Runde ' + (state.cur + 2) + ' beginnen' : 'Du darfst auch jetzt noch weiter Punkte holen') + '.</div></div></button>') + '</div>' +
+    '<button class="abbr" data-a="znew">Neues Spiel starten</button>', false);
 }
 const JOKERTEXT = {
   sn: 'Setzt die Klammer ) hinter deine bisherigen Punkte. Nullst du später, bleiben sie dir.',
@@ -752,7 +768,10 @@ document.addEventListener('click', ev => {
   else if (a === 'dov') { const v = document.getElementById('ov-in').value; if (v === '' || isNaN(+v)) { toast('Bitte eine Zahl eintragen.'); return; } merken(); state.rounds[state.dialog.i].override = Math.round(+v); speichern(); render(true); }
   else if (a === 'dov0') { merken(); state.rounds[state.dialog.i].override = null; speichern(); render(true); }
   else if (a === 'rleer') { merken(); state.rounds[state.dialog.i] = neueRunde(); state.dialog = null; speichern(); render(true); toast('Runde geleert.'); }
-  else if (a === 'ww') { const r = R(); merken(); if (b.dataset.w === 'sichern') r.status = 'gesichert'; state.dialog = null; state.cur++; speichern(); render(true); window.scrollTo(0, 0); }
+  else if (a === 'ww') { const r = R(); merken(); if (b.dataset.w === 'sichern') r.status = 'gesichert'; state.dialog = null; if (zielPruefen(true)) { speichern(); render(true); return; } state.cur++; speichern(); render(true); window.scrollTo(0, 0); }
+  else if (a === 'zend') beenden();
+  else if (a === 'zweiter') { const w = state.dialog.weiter; merken(); state.zielGezeigt = true; state.dialog = null; if (w && state.cur < RUNDEN - 1) state.cur++; speichern(); render(false); window.scrollTo(0, 0); }
+  else if (a === 'znew') { state.dialog = null; state.pendingNew = true; render(false); }
   else if (a === 'undo') zurueck();
   else if (a === 'wake') toggleWake();
   else if (a === 'fs') toggleFS();
