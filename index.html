@@ -551,6 +551,8 @@ function blatt() {
 function banner() {
   const g = gesamt();
   if (g < ZIEL || state.phase === 'done') return '';
+  const r = R();
+  if (r.status === 'offen' && r.f.length) return '<div class="banner"><b>' + ZIEL + ' geknackt!</b> Du darfst in dieser Runde noch weiter Punkte holen. Sobald du aussteigst oder nullst, siehst du deine Gesamtpunkte und kannst die Partie beenden oder weiterspielen.</div>';
   return '<div class="banner"><b>' + ZIEL + ' erreicht!</b> Das läutet die letzte Runde ein: Wer die Marke zuerst knackt, darf sofort aussteigen oder weiterspielen. Alle anderen spielen die laufende Runde noch zu Ende. Danach gewinnt, wer die meisten Punkte hat.</div>';
 }
 function spiel() {
@@ -677,7 +679,7 @@ function zielDialog(d) {
     '<div style="text-align:center;margin-bottom:12px"><div class="flap" style="display:inline-block;font-size:46px;padding:4px 28px">' + fmt(gesamt()) + '</div>' +
     '<div class="klein" style="margin-top:6px">Gesamtpunkte · Genullte Runden: <b>' + nullrunden() + '</b></div></div>' +
     '<div class="opts"><button class="opt pink" data-a="zend"><span class="ic" style="color:#fff">■</span><div><div class="nm">Partie beenden</div><div class="bs">Endstand mit deinen Gesamtpunkten anzeigen.</div></div></button>' +
-    (letzte ? '' : '<button class="opt" data-a="zweiter"><span class="ic" style="color:var(--lime)">›</span><div><div class="nm">Weiterspielen</div><div class="bs">' + (d.weiter ? 'Runde ' + (state.cur + 2) + ' beginnen' : 'Du darfst auch jetzt noch weiter Punkte holen') + '.</div></div></button>') + '</div>' +
+    (letzte ? '' : '<button class="opt" data-a="zweiter"><span class="ic" style="color:var(--lime)">›</span><div><div class="nm">Weiterspielen</div><div class="bs">Runde ' + (state.cur + 2) + ' beginnen.</div></div></button>') + '</div>' +
     '<button class="abbr" data-a="znew">Neues Spiel starten</button>', false);
 }
 const JOKERTEXT = {
@@ -768,9 +770,9 @@ document.addEventListener('click', ev => {
   else if (a === 'dov') { const v = document.getElementById('ov-in').value; if (v === '' || isNaN(+v)) { toast('Bitte eine Zahl eintragen.'); return; } merken(); state.rounds[state.dialog.i].override = Math.round(+v); speichern(); render(true); }
   else if (a === 'dov0') { merken(); state.rounds[state.dialog.i].override = null; speichern(); render(true); }
   else if (a === 'rleer') { merken(); state.rounds[state.dialog.i] = neueRunde(); state.dialog = null; speichern(); render(true); toast('Runde geleert.'); }
-  else if (a === 'ww') { const r = R(); merken(); if (b.dataset.w === 'sichern') r.status = 'gesichert'; state.dialog = null; if (zielPruefen(true)) { speichern(); render(true); return; } state.cur++; speichern(); render(true); window.scrollTo(0, 0); }
+  else if (a === 'ww') { const r = R(); merken(); if (b.dataset.w === 'sichern') r.status = 'gesichert'; state.dialog = null; if (b.dataset.w === 'sichern' && zielPruefen(true)) { speichern(); render(true); return; } state.cur++; speichern(); render(true); window.scrollTo(0, 0); }
   else if (a === 'zend') beenden();
-  else if (a === 'zweiter') { const w = state.dialog.weiter; merken(); state.zielGezeigt = true; state.dialog = null; if (w && state.cur < RUNDEN - 1) state.cur++; speichern(); render(false); window.scrollTo(0, 0); }
+  else if (a === 'zweiter') { merken(); state.zielGezeigt = true; state.dialog = null; if (state.cur < RUNDEN - 1) state.cur++; speichern(); render(false); window.scrollTo(0, 0); }
   else if (a === 'znew') { state.dialog = null; state.pendingNew = true; render(false); }
   else if (a === 'undo') zurueck();
   else if (a === 'wake') toggleWake();
