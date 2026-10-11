@@ -508,7 +508,7 @@ function spielEingabe() {
     '<button class="btn still" data-a="del"' + (r.f.length ? '' : ' disabled') + '>⌫ Letztes Feld<small>löschen</small></button></div>' +
     '<div class="zeile2">' + (offen
       ? '<button class="btn gruen gross" data-a="sichern"' + (r.f.length ? '' : ' disabled') + '>Aussteigen &amp; sichern</button><button class="btn rand gross" data-a="nullen"' + (r.f.length ? '' : ' disabled') + '>Genullt</button>'
-      : '<button class="btn still gross" data-a="oeffnen">Runde wieder öffnen</button>') + '</div></div>';
+      : '<button class="btn pink gross" data-a="weiter">' + (c === RUNDEN - 1 ? 'Partie beenden' : 'Nächste Runde ›') + '</button><button class="btn still gross" data-a="oeffnen">Wieder öffnen</button>') + '</div></div>';
   h += '<div class="karte"><div class="kopfz"><span class="titel g">Joker</span><span class="klein">je 1× pro Spiel · vor dem Wurf ansagen</span></div><div class="jokers">' +
     state.joker.map((j, i) => {
       if (j.typ === null) return '<button class="jk leer" data-a="joker" data-i="' + i + '" aria-label="Bonus-Jokerfeld"><b>+</b><span>Bonus-Feld</span></button>';
